@@ -1,20 +1,24 @@
 import { Composition, staticFile } from 'remotion';
-import { PortraitVideo } from './PortraitVideo';
+import {
+  END_CARD_DURATION,
+  PORTRAIT_DURATION,
+  Portrait,
+  PortraitVideo,
+  TRANSITION_OVERLAP,
+} from './PortraitVideo';
 
-const portraits = [
-  staticFile('portrait-1.jpg'),
-  staticFile('portrait-2.jpg'),
-  staticFile('portrait-3.jpg'),
-  staticFile('portrait-4.jpg'),
-  staticFile('portrait-5.jpg'),
+const portraits: Portrait[] = [
+  { src: staticFile('portrait-1.jpg'), title: 'Tendresse' },
+  { src: staticFile('portrait-2.jpg'), title: 'Reverie' },
+  { src: staticFile('portrait-3.jpg'), title: 'Les Deux' },
+  { src: staticFile('portrait-4.jpg'), title: 'Lumière' },
+  { src: staticFile('portrait-5.jpg'), title: 'Mémoire' },
 ];
 
-const PORTRAIT_DURATION = 90;
-const TRANSITION_OVERLAP = 15;
-
 export const RemotionRoot: React.FC = () => {
-  const totalFrames =
+  const slidesEnd =
     portraits.length * (PORTRAIT_DURATION - TRANSITION_OVERLAP) + TRANSITION_OVERLAP;
+  const totalFrames = slidesEnd + END_CARD_DURATION;
 
   return (
     <Composition
