@@ -1,17 +1,17 @@
 import {
   AbsoluteFill,
-  Audio,
   Img,
   interpolate,
   Sequence,
-  staticFile,
+  spring,
   useCurrentFrame,
   useVideoConfig,
   Easing,
 } from 'remotion';
 
-export const PORTRAIT_DURATION = 90;
-export const TRANSITION_OVERLAP = 15;
+export const PORTRAIT_DURATION = 45;
+export const TRANSITION_OVERLAP = 10;
+export const HOOK_DURATION = 60;
 export const END_CARD_DURATION = 75;
 
 const SERIF_STACK =
@@ -22,56 +22,41 @@ const SANS_STACK =
 const BACKDROP = '#f5f1ec';
 const INK = '#1a1a1a';
 const MUTED = '#6b665e';
+const ACCENT = '#c44a2a';
 
 export type Portrait = { src: string; title: string };
 
-type Transition = 'fade' | 'kenburns' | 'slide';
+export type PortraitVideoProps = {
+  portraits: Portrait[];
+  hook: string;
+  endHeadline: string;
+  endSubhead: string;
+};
 
 const PortraitSlide: React.FC<{
   src: string;
-  title: string;
-  transition: Transition;
   index: number;
-  total: number;
-}> = ({ src, title, transition, index, total }) => {
+}> = ({ src, index }) => {
   const frame = useCurrentFrame();
-  const { width } = useVideoConfig();
+  const { fps } = useVideoConfig();
+
+  const enterScale = spring({
+    frame,
+    fps,
+    config: { damping: 18, mass: 0.6, stiffness: 140 },
+    durationInFrames: 12,
+  });
+  const startScale = index % 2 === 0 ? 1.08 : 0.94;
+  const scale = startScale + (1 - startScale) * enterScale;
+
+  const breathe = interpolate(frame, [0, PORTRAIT_DURATION], [0, 0.025]);
+  const finalScale = scale + breathe;
 
   const opacity = interpolate(
     frame,
-    [0, TRANSITION_OVERLAP, PORTRAIT_DURATION - TRANSITION_OVERLAP, PORTRAIT_DURATION],
+    [0, 5, PORTRAIT_DURATION - TRANSITION_OVERLAP, PORTRAIT_DURATION],
     [0, 1, 1, 0],
     { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' }
-  );
-
-  const scale =
-    transition === 'kenburns'
-      ? interpolate(frame, [0, PORTRAIT_DURATION], [1, 1.12], { easing: Easing.linear })
-      : 1;
-  const translateY =
-    transition === 'kenburns'
-      ? interpolate(frame, [0, PORTRAIT_DURATION], [0, -24])
-      : 0;
-
-  const slideX =
-    transition === 'slide'
-      ? interpolate(
-          frame,
-          [0, TRANSITION_OVERLAP, PORTRAIT_DURATION - TRANSITION_OVERLAP, PORTRAIT_DURATION],
-          [width * 0.25, 0, 0, -width * 0.25],
-          {
-            easing: Easing.out(Easing.cubic),
-            extrapolateRight: 'clamp',
-            extrapolateLeft: 'clamp',
-          }
-        )
-      : 0;
-
-  const labelOpacity = interpolate(
-    frame,
-    [TRANSITION_OVERLAP, TRANSITION_OVERLAP + 12, PORTRAIT_DURATION - TRANSITION_OVERLAP, PORTRAIT_DURATION],
-    [0, 1, 1, 0],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
 
   return (
@@ -82,61 +67,28 @@ const PortraitSlide: React.FC<{
           width: '100%',
           height: '100%',
           objectFit: 'contain',
-          transform: `translateX(${slideX}px) translateY(${translateY}px) scale(${scale})`,
+          transform: `scale(${finalScale})`,
         }}
       />
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 140,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          opacity: labelOpacity,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: SERIF_STACK,
-            fontSize: 44,
-            color: INK,
-            letterSpacing: 6,
-            textTransform: 'uppercase',
-          }}
-        >
-          {title}
-        </div>
-        <div
-          style={{
-            marginTop: 12,
-            fontFamily: SANS_STACK,
-            fontSize: 22,
-            color: MUTED,
-            letterSpacing: 8,
-          }}
-        >
-          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
-        </div>
-      </div>
     </AbsoluteFill>
   );
 };
 
-const HookOverlay: React.FC = () => {
+const KineticHook: React.FC<{ text: string }> = ({ text }) => {
   const frame = useCurrentFrame();
-  const HOOK_FRAMES = 60;
-  if (frame > HOOK_FRAMES) return null;
+  const { fps } = useVideoConfig();
+  const words = text.split(' ');
+  const STAGGER = 4;
 
-  const opacity = interpolate(
+  const cardOpacity = interpolate(
     frame,
-    [0, 8, HOOK_FRAMES - 12, HOOK_FRAMES],
+    [0, 6, HOOK_DURATION - 12, HOOK_DURATION],
     [0, 1, 1, 0],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
-  const lift = interpolate(frame, [0, HOOK_FRAMES], [40, 0], {
+  const cardLift = interpolate(frame, [0, 18], [40, 0], {
     easing: Easing.out(Easing.cubic),
+    extrapolateRight: 'clamp',
   });
 
   return (
@@ -144,51 +96,162 @@ const HookOverlay: React.FC = () => {
       style={{
         alignItems: 'center',
         justifyContent: 'flex-start',
-        paddingTop: 220,
-        opacity,
+        paddingTop: 200,
+        opacity: cardOpacity,
         pointerEvents: 'none',
       }}
     >
       <div
         style={{
-          transform: `translateY(${lift}px)`,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 18,
-          padding: '40px 64px',
-          background: 'rgba(245, 241, 236, 0.78)',
-          borderRadius: 28,
-          backdropFilter: 'blur(6px)',
+          transform: `translateY(${cardLift}px)`,
+          padding: '44px 60px',
+          background: 'rgba(245, 241, 236, 0.86)',
+          borderRadius: 32,
+          boxShadow: '0 14px 40px rgba(26,26,26,0.08)',
         }}
       >
         <div
           style={{
             fontFamily: SANS_STACK,
-            fontSize: 24,
-            letterSpacing: 10,
+            fontSize: 22,
+            letterSpacing: 12,
             color: MUTED,
             textTransform: 'uppercase',
+            marginBottom: 16,
+            textAlign: 'center',
           }}
         >
           loiseaubleu
         </div>
         <div
           style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '0 22px',
+            maxWidth: 880,
             fontFamily: SERIF_STACK,
-            fontSize: 88,
+            fontSize: 92,
             lineHeight: 1.05,
             color: INK,
             textAlign: 'center',
-            fontWeight: 400,
-            maxWidth: 880,
           }}
         >
-          I turned this photo into
-          <br />a ceramic portrait.
+          {words.map((word, i) => {
+            const start = i * STAGGER;
+            const wordIn = spring({
+              frame: frame - start,
+              fps,
+              config: { damping: 16, mass: 0.5, stiffness: 160 },
+              durationInFrames: 14,
+            });
+            const wordOpacity = interpolate(frame - start, [0, 6], [0, 1], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+            });
+            return (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  transform: `translateY(${(1 - wordIn) * 30}px) scale(${0.9 + 0.1 * wordIn})`,
+                  opacity: wordOpacity,
+                }}
+              >
+                {word}
+              </span>
+            );
+          })}
         </div>
       </div>
     </AbsoluteFill>
+  );
+};
+
+const ScarcityBadge: React.FC = () => {
+  const frame = useCurrentFrame();
+  const opacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
+  const lift = interpolate(frame, [0, 18], [-20, 0], {
+    easing: Easing.out(Easing.cubic),
+    extrapolateRight: 'clamp',
+  });
+  const pulse = 1 + 0.03 * Math.sin((frame / 12) * Math.PI);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 90,
+        right: 56,
+        transform: `translateY(${lift}px) scale(${pulse})`,
+        opacity,
+        padding: '14px 24px',
+        background: ACCENT,
+        color: '#fff',
+        fontFamily: SANS_STACK,
+        fontSize: 22,
+        fontWeight: 700,
+        letterSpacing: 3,
+        textTransform: 'uppercase',
+        borderRadius: 999,
+        boxShadow: '0 8px 24px rgba(196,74,42,0.35)',
+      }}
+    >
+      Only 25 / month
+    </div>
+  );
+};
+
+const TitleCaption: React.FC<{ title: string; index: number; total: number }> = ({
+  title,
+  index,
+  total,
+}) => {
+  const frame = useCurrentFrame();
+  const opacity = interpolate(frame, [0, 6, PORTRAIT_DURATION - 8, PORTRAIT_DURATION], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const lift = interpolate(frame, [0, 10], [16, 0], {
+    easing: Easing.out(Easing.cubic),
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 180,
+        textAlign: 'center',
+        transform: `translateY(${lift}px)`,
+        opacity,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: SERIF_STACK,
+          fontSize: 56,
+          letterSpacing: 6,
+          color: INK,
+          textTransform: 'uppercase',
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          fontFamily: SANS_STACK,
+          fontSize: 24,
+          letterSpacing: 10,
+          color: MUTED,
+        }}
+      >
+        {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+      </div>
+    </div>
   );
 };
 
@@ -196,7 +259,7 @@ const Watermark: React.FC = () => (
   <div
     style={{
       position: 'absolute',
-      bottom: 56,
+      bottom: 70,
       left: 0,
       right: 0,
       textAlign: 'center',
@@ -211,12 +274,24 @@ const Watermark: React.FC = () => (
   </div>
 );
 
-const EndCard: React.FC = () => {
+const EndCard: React.FC<{ headline: string; subhead: string }> = ({ headline, subhead }) => {
   const frame = useCurrentFrame();
-  const opacity = interpolate(frame, [0, 14, END_CARD_DURATION - 8, END_CARD_DURATION], [0, 1, 1, 1], {
-    extrapolateRight: 'clamp',
+  const { fps } = useVideoConfig();
+
+  const popIn = spring({
+    frame,
+    fps,
+    config: { damping: 16, mass: 0.6, stiffness: 130 },
+    durationInFrames: 18,
   });
-  const lift = interpolate(frame, [0, 30], [24, 0], { easing: Easing.out(Easing.cubic) });
+  const fadeIn = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
+  const fadeOut = interpolate(
+    frame,
+    [END_CARD_DURATION - 8, END_CARD_DURATION],
+    [1, 0],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  const opacity = Math.min(fadeIn, fadeOut);
 
   return (
     <AbsoluteFill
@@ -224,16 +299,16 @@ const EndCard: React.FC = () => {
         backgroundColor: BACKDROP,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity,
       }}
     >
       <div
         style={{
-          transform: `translateY(${lift}px)`,
+          opacity,
+          transform: `scale(${0.9 + 0.1 * popIn})`,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 28,
+          gap: 26,
         }}
       >
         <div
@@ -245,7 +320,7 @@ const EndCard: React.FC = () => {
             textTransform: 'uppercase',
           }}
         >
-          turn someone you love into
+          {subhead}
         </div>
         <div
           style={{
@@ -254,52 +329,64 @@ const EndCard: React.FC = () => {
             lineHeight: 1.0,
             color: INK,
             textAlign: 'center',
+            maxWidth: 920,
+            whiteSpace: 'pre-line',
           }}
         >
-          a ceramic
-          <br />
-          portrait.
+          {headline}
         </div>
         <div
           style={{
             marginTop: 24,
-            padding: '20px 48px',
-            border: `2px solid ${INK}`,
+            padding: '22px 52px',
+            background: INK,
+            color: BACKDROP,
             borderRadius: 999,
             fontFamily: SANS_STACK,
             fontSize: 30,
             letterSpacing: 4,
-            color: INK,
+            fontWeight: 600,
           }}
         >
           portrait.loiseaubleu.fun  →
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            fontFamily: SANS_STACK,
+            fontSize: 20,
+            letterSpacing: 8,
+            color: ACCENT,
+            textTransform: 'uppercase',
+          }}
+        >
+          Only 25 portraits this month
         </div>
       </div>
     </AbsoluteFill>
   );
 };
 
-export const PortraitVideo: React.FC<{ portraits: Portrait[] }> = ({ portraits }) => {
-  const transitions: Transition[] = ['fade', 'kenburns', 'slide'];
-  const slidesEnd = portraits.length * (PORTRAIT_DURATION - TRANSITION_OVERLAP) + TRANSITION_OVERLAP;
+export const PortraitVideo: React.FC<PortraitVideoProps> = ({
+  portraits,
+  hook,
+  endHeadline,
+  endSubhead,
+}) => {
+  const slidesEnd =
+    portraits.length * (PORTRAIT_DURATION - TRANSITION_OVERLAP) + TRANSITION_OVERLAP;
 
   return (
     <AbsoluteFill style={{ backgroundColor: BACKDROP }}>
-      <Audio src={staticFile('music.mp3')} volume={0.55} />
-
       {portraits.map((p, i) => (
         <Sequence
           key={p.src}
           from={i * (PORTRAIT_DURATION - TRANSITION_OVERLAP)}
           durationInFrames={PORTRAIT_DURATION}
+          name={`Slide ${i + 1}`}
         >
-          <PortraitSlide
-            src={p.src}
-            title={p.title}
-            transition={transitions[i % 3]}
-            index={i}
-            total={portraits.length}
-          />
+          <PortraitSlide src={p.src} index={i} />
+          <TitleCaption title={p.title} index={i} total={portraits.length} />
         </Sequence>
       ))}
 
@@ -307,12 +394,16 @@ export const PortraitVideo: React.FC<{ portraits: Portrait[] }> = ({ portraits }
         <Watermark />
       </Sequence>
 
-      <Sequence from={0} durationInFrames={60}>
-        <HookOverlay />
+      <Sequence from={HOOK_DURATION} durationInFrames={slidesEnd - HOOK_DURATION}>
+        <ScarcityBadge />
+      </Sequence>
+
+      <Sequence from={0} durationInFrames={HOOK_DURATION}>
+        <KineticHook text={hook} />
       </Sequence>
 
       <Sequence from={slidesEnd} durationInFrames={END_CARD_DURATION}>
-        <EndCard />
+        <EndCard headline={endHeadline} subhead={endSubhead} />
       </Sequence>
     </AbsoluteFill>
   );
