@@ -6,6 +6,7 @@ const portraits = [
   staticFile('portrait-2.jpg'),
   staticFile('portrait-3.jpg'),
   staticFile('portrait-4.jpg'),
+  staticFile('portrait-5.jpg'),
 ];
 
 const PORTRAIT_DURATION = 90;

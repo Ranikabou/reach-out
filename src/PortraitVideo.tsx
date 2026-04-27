@@ -52,13 +52,13 @@ const PortraitSlide: React.FC<{
       : 0;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000', opacity }}>
+    <AbsoluteFill style={{ backgroundColor: '#f5f1ec', opacity }}>
       <Img
         src={src}
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
+          objectFit: 'contain',
           transform: `translateX(${slideX}px) translateY(${translateY}px) scale(${scale})`,
         }}
       />
@@ -70,7 +70,7 @@ export const PortraitVideo: React.FC<{ portraits: string[] }> = ({ portraits }) 
   const transitions: Transition[] = ['fade', 'kenburns', 'slide'];
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
+    <AbsoluteFill style={{ backgroundColor: '#f5f1ec' }}>
       {portraits.map((src, i) => (
         <Sequence
           key={src}
