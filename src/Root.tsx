@@ -1,9 +1,11 @@
-import { Composition } from 'remotion';
+import { Composition, staticFile } from 'remotion';
 import { PortraitVideo } from './PortraitVideo';
 
 const portraits = [
-  'https://portraits.loiseaubleu.fun/image1.jpg',
-  'https://portraits.loiseaubleu.fun/image2.jpg',
+  staticFile('portrait-1.jpg'),
+  staticFile('portrait-2.jpg'),
+  staticFile('portrait-3.jpg'),
+  staticFile('portrait-4.jpg'),
 ];
 
 const PORTRAIT_DURATION = 90;
